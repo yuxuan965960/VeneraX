@@ -10,7 +10,7 @@ on:
       ref:
         description: "Tag/commit matching the crashing build"
         required: true
-        default: "v2.1.8-beta.1"
+        default: "main"
       expected_uuid:
         description: "App image UUID from the .ips (lowercase, dashed)"
         required: false
