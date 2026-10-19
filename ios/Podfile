@@ -1,0 +1,64 @@
+# iOS 15 support
+# ---------------
+# The app's own deployment target is 15.0 (see IPHONEOS_DEPLOYMENT_TARGET in
+# Runner.xcodeproj and MinimumOSVersion in Flutter/AppFrameworkInfo.plist).
+#
+# The CocoaPods resolution floor is 15.1 because `onnxruntime-objc` 1.23.0 (pulled
+# in by flutter_onnxruntime) declares `"ios": "15.1"`; CocoaPods refuses to resolve
+# anything below the highest pod requirement. Bumping that number here is enough
+# to satisfy resolution — it does not raise the app's minimum OS. The pods
+# themselves are then built at the app's floor by the post_install hook below.
+platform :ios, '15.1'
+
+# CocoaPods analytics sends network stats synchronously affecting flutter build latency.
+ENV['COCOAPODS_DISABLE_STATS'] = 'true'
+
+project 'Runner', {
+  'Debug' => :debug,
+  'Profile' => :release,
+  'Release' => :release,
+}
+
+def flutter_root
+  generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
+  unless File.exist?(generated_xcode_build_settings_path)
+    raise "#{generated_xcode_build_settings_path} must exist. If you're running pod install manually, make sure flutter pub get is executed first"
+  end
+
+  File.foreach(generated_xcode_build_settings_path) do |line|
+    matches = line.match(/FLUTTER_ROOT\=(.*)/)
+    return matches[1].strip if matches
+  end
+  raise "FLUTTER_ROOT not found in #{generated_xcode_build_settings_path}. Try deleting Generated.xcconfig, then run flutter pub get"
+end
+
+require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
+
+flutter_ios_podfile_setup
+
+target 'Runner' do
+  use_frameworks!
+  use_modular_headers!
+
+  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+  #target 'RunnerTests' do
+  #  inherit! :search_paths
+  #end
+end
+
+post_install do |installer|
+  # Build every pod at (or below) the app's own floor. Only onnxruntime-objc
+  # declares something newer (15.1); lowering it here keeps the pod binaries at
+  # the app's 15.0 so the library never claims a higher minimum than the app.
+  app_deployment_target = '15.0'
+
+  installer.pods_project.targets.each do |target|
+    flutter_additional_ios_build_settings(target)
+    target.build_configurations.each do |config|
+      current = config.build_settings['IPHONEOS_DEPLOYMENT_TARGET']
+      if current.nil? || current.to_f > app_deployment_target.to_f
+        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = app_deployment_target
+      end
+    end
+  end
+end
